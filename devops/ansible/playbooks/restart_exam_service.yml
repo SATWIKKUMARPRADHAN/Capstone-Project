@@ -1,0 +1,32 @@
+---
+- name: Recover Stopped Examination Application Service
+  hosts: "{{ target_host | default('windows_workstations') }}"
+  gather_facts: false
+  tasks:
+    - name: Stop stale exam service or orphan browser lock processes
+      ansible.windows.win_shell: |
+        Get-Process -Name "LabExamClient","node" -ErrorAction SilentlyContinue |
+          Where-Object { $_.CommandLine -match "exam-app" } |
+          Stop-Process -Force -ErrorAction SilentlyContinue
+      ignore_errors: true
+
+    - name: Restart LabGuard Exam Service on Windows workstation
+      ansible.windows.win_service:
+        name: LabGuardExamService
+        state: started
+        start_mode: auto
+
+    - name: Verify Exam Health Endpoint responds HTTP 200 OK
+      ansible.windows.win_uri:
+        url: "http://localhost:3000/api/exam/health"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: health_check
+      retries: 5
+      delay: 3
+      until: health_check.status_code == 200
+
+    - name: Report post-recovery verification status
+      ansible.builtin.debug:
+        msg: "Exam application service restored and verified on {{ inventory_hostname }}."

@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: labguard-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: labguard
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - labguard-net
+
+  labguard-app:
+    build:
+      context: ../../
+      dockerfile: devops/docker/Dockerfile.app
+    container_name: labguard-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb:27017/labguard
+      ML_API_URL: http://ml-service:5001
+      ANSIBLE_INVENTORY: /app/devops/ansible/hosts.ini
+    depends_on:
+      - mongodb
+      - ml-service
+    networks:
+      - labguard-net
+
+  ml-service:
+    build:
+      context: ../../ml
+      dockerfile: ../devops/docker/Dockerfile.ml
+    container_name: labguard-ml
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    networks:
+      - labguard-net
+
+  nagios:
+    image: jasonrivers/nagios:latest
+    container_name: labguard-nagios
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      LABGUARD_BACKEND_URL: http://labguard-app:3000/api/nagios/webhook
+    volumes:
+      - ../nagios/lab-workstations.cfg:/opt/nagios/etc/objects/lab-workstations.cfg:ro
+      - ../nagios/exam-app.cfg:/opt/nagios/etc/objects/exam-app.cfg:ro
+      - ../nagios/notify-backend.sh:/usr/local/nagios/libexec/notify-backend.sh:ro
+    depends_on:
+      - labguard-app
+    networks:
+      - labguard-net
+
+volumes:
+  mongo_data:
+
+networks:
+  labguard-net:
+    driver: bridge

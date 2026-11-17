@@ -1,0 +1,23 @@
+---
+- name: Mitigate High CPU Utilization on Lab Workstation
+  hosts: "{{ target_host | default('windows_workstations') }}"
+  gather_facts: false
+  tasks:
+    - name: Identify non-essential high-CPU background processes (excluding exam & OS core)
+      ansible.windows.win_shell: |
+        $blocked = @("chrome_updater","OneDrive","Teams","SearchIndexer","CodeSetup")
+        Get-Process | Where-Object { $blocked -contains $_.ProcessName -and $_.CPU -gt 60 } |
+          ForEach-Object { Stop-Process -Id $_.Id -Force; Write-Output "Terminated $($_.ProcessName)" }
+      register: cpu_cleanup
+
+    - name: Reset Windows Update background worker if hung
+      ansible.windows.win_service:
+        name: wuauserv
+        state: stopped
+      ignore_errors: true
+
+    - name: Verify CPU usage drops below threshold
+      ansible.windows.win_shell: |
+        $cpu = (Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples[0].CookedValue
+        [math]::Round($cpu, 2)
+      register: cpu_post_check

@@ -1,0 +1,20 @@
+---
+- name: Restore Standard Exam Kiosk Configuration
+  hosts: "{{ target_host | default('windows_workstations') }}"
+  gather_facts: false
+  tasks:
+    - name: Run Puppet agent enforcement pass to repair configuration drift
+      ansible.windows.win_shell: |
+        & "C:\Program Files\Puppet Labs\Puppet\bin\puppet.bat" agent --test --detailed-exitcodes
+      register: puppet_run
+      failed_when: puppet_run.rc not in [0, 2]
+
+    - name: Ensure Exam Kiosk firewall allow rule is present
+      ansible.windows.win_firewall_rule:
+        name: "LabGuard Exam Port 3000"
+        localport: 3000
+        action: allow
+        direction: in
+        protocol: tcp
+        state: present
+        enabled: true

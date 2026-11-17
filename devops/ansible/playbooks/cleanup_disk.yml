@@ -1,0 +1,17 @@
+---
+- name: Reclaim Disk Space and Clear Stale Exam Caches
+  hosts: "{{ target_host | default('windows_workstations') }}"
+  gather_facts: false
+  tasks:
+    - name: Purge Windows Temp and stale browser cache directories
+      ansible.windows.win_shell: |
+        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+
+    - name: Verify available free space on system drive C
+      ansible.windows.win_shell: |
+        $drive = Get-PSDrive C
+        $usedPct = [math]::Round(($drive.Used / ($drive.Used + $drive.Free)) * 100, 2)
+        Write-Output "DiskUsedPercent=$usedPct"
+      register: disk_post_check

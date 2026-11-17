@@ -1,0 +1,6 @@
+{
+  "name": "LabGuard — QR-Based Computer Lab Assistance & Self-Healing Monitoring System",
+  "description": "Full-stack B.Tech CSE capstone project integrating QR-based workstation issue reporting, custom examination application, Nagios monitoring, Ansible automated fault recovery, Puppet configuration management, and Scikit-learn Isolation Forest anomaly detection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
